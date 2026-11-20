@@ -1,0 +1,21 @@
+# DineFlow Root Gitignore
+.idea/
+*.iml
+.vscode/
+*.log
+
+# Backend
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/bin/
+backend/*.log
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+
+# OS
+.DS_Store
+Thumbs.db
