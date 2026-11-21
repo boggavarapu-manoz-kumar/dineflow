@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { UtensilsCrossed, User, Phone, ArrowRight, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { enterCustomerSession } from '@/lib/authClient';
 
 export const CustomerEntryPage: React.FC = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const restaurantName = searchParams.get('restaurant') || 'The Grand Heritage';
   const tableNumber = searchParams.get('table') || '04';
@@ -35,6 +36,9 @@ export const CustomerEntryPage: React.FC = () => {
     try {
       await enterCustomerSession(name.trim(), countryCode + mobileNumber.trim(), entryToken);
       setSessionCreated(true);
+      setTimeout(() => {
+        navigate('/customer/menu');
+      }, 1000);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Invalid or expired QR entry token. Please scan table QR again.');
     } finally {

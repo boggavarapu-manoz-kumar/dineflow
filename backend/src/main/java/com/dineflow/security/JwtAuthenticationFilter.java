@@ -41,6 +41,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UUID userId = UUID.fromString(claims.getSubject());
                 String tenantIdStr = claims.get("tenantId", String.class);
                 UUID tokenTenantId = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
+                String branchIdStr = claims.get("branchId", String.class);
+                UUID tokenBranchId = branchIdStr != null ? UUID.fromString(branchIdStr) : null;
                 String roleCode = claims.get("role", String.class);
                 String type = claims.get("type", String.class);
                 
@@ -63,7 +65,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     TenantContext.setTenantId(tokenTenantId);
                 }
 
-                DineFlowPrincipal principal = new DineFlowPrincipal(userId, tokenTenantId, roleCode, perms, type);
+                DineFlowPrincipal principal = new DineFlowPrincipal(userId, tokenTenantId, tokenBranchId, roleCode, perms, type);
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         principal, null, principal.getAuthorities()
                 );

@@ -3,7 +3,7 @@ spring:
     activate:
       on-profile: local
   datasource:
-    url: jdbc:h2:mem:dineflow_local;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    url: jdbc:h2:file:./data/dineflow_local;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
@@ -19,6 +19,6 @@ dineflow:
   cors:
     allowed-origins: http://localhost:5173,http://localhost:3000
   app:
-    name: DineFlow
+    name: DineFlow Local
     version: 1.0.0
-    environment: local-preview
+    environment: local

@@ -15,6 +15,9 @@ public class CustomerSession extends BaseEntity {
     @Column(name = "tenant_id", nullable = false)
     private UUID tenantId;
 
+    @Column(name = "branch_id")
+    private UUID branchId;
+
     @Column(name = "table_number", nullable = false)
     private String tableNumber;
 
@@ -39,6 +42,14 @@ public class CustomerSession extends BaseEntity {
 
     public void setTenantId(UUID tenantId) {
         this.tenantId = tenantId;
+    }
+
+    public UUID getBranchId() {
+        return branchId;
+    }
+
+    public void setBranchId(UUID branchId) {
+        this.branchId = branchId;
     }
 
     public String getTableNumber() {

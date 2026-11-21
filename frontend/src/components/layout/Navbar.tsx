@@ -33,10 +33,10 @@ export const Navbar: React.FC = () => {
 
         {/* Navigation Links */}
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+          <Link to="/" className="hover:text-slate-900 transition-colors">Platform Home</Link>
+          <Link to="/admin/menu" className="hover:text-slate-900 transition-colors font-semibold text-emerald-700">Menu Catalog</Link>
           <a href="#experiences" className="hover:text-slate-900 transition-colors">5 Applications</a>
-          <a href="#workflow" className="hover:text-slate-900 transition-colors">Ordering Flow</a>
           <a href="#architecture" className="hover:text-slate-900 transition-colors">Architecture</a>
-          <a href="#dashboard-preview" className="hover:text-slate-900 transition-colors">Hotel Dashboard</a>
         </nav>
 
         {/* Actions & Health Telemetry Badge */}

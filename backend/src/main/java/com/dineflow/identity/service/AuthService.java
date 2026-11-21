@@ -275,6 +275,7 @@ public class AuthService {
 
         CustomerSession session = new CustomerSession();
         session.setTenantId(entryContext.tenantId());
+        session.setBranchId(entryContext.branchId());
         session.setTableNumber(entryContext.tableNumber());
         session.setCustomerName(request.name());
         session.setMaskedMobile(maskMobile(request.mobileNumber()));
@@ -286,6 +287,7 @@ public class AuthService {
         String guestJwt = jwtTokenService.generateAccessToken(
                 session.getId(),
                 entryContext.tenantId(),
+                entryContext.branchId(),
                 "CUSTOMER_GUEST",
                 List.of("CUSTOMER_MENU_VIEW", "CUSTOMER_ORDER_VIEW_OWN", "CUSTOMER_ORDER_CREATE"),
                 "GUEST"
@@ -295,6 +297,7 @@ public class AuthService {
                 guestJwt,
                 session.getId(),
                 entryContext.tenantId(),
+                entryContext.branchId(),
                 entryContext.tableNumber(),
                 session.getCustomerName(),
                 expiresAt

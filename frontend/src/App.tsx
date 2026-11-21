@@ -9,6 +9,11 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
 import { StaffLoginPage } from '@/pages/auth/StaffLoginPage';
 import { SuperAdminLoginPage } from '@/pages/auth/SuperAdminLoginPage';
 import { CustomerEntryPage } from '@/pages/customer/CustomerEntryPage';
+import { CustomerMenuPage } from '@/pages/customer/CustomerMenuPage';
+import { CustomerOrderTrackingPage } from '@/pages/customer/CustomerOrderTrackingPage';
+import { MenuManagementPage } from '@/pages/staff/MenuManagementPage';
+import { WaiterDashboardPage } from '@/pages/staff/WaiterDashboardPage';
+import { KitchenDisplayPage } from '@/pages/staff/KitchenDisplayPage';
 import { ProtectedRoute, RoleGuard } from '@/components/guards/AuthGuards';
 
 const queryClient = new QueryClient({
@@ -37,8 +42,10 @@ export const App: React.FC = () => {
                 <Route path="/staff/login" element={<StaffLoginPage />} />
                 <Route path="/super-admin/login" element={<SuperAdminLoginPage />} />
 
-                {/* Customer Table QR Entry */}
+                {/* Customer Table QR Entry & Digital Menu */}
                 <Route path="/customer/entry" element={<CustomerEntryPage />} />
+                <Route path="/customer/menu" element={<CustomerMenuPage />} />
+                <Route path="/customer/orders/:orderId" element={<CustomerOrderTrackingPage />} />
 
                 {/* Protected Staff Operations */}
                 <Route
@@ -46,10 +53,41 @@ export const App: React.FC = () => {
                   element={
                     <ProtectedRoute>
                       <RoleGuard allowedRoles={['HOTEL_OWNER', 'HOTEL_ADMIN', 'BRANCH_MANAGER']}>
-                        <div className="max-w-7xl mx-auto px-4 py-12">
-                          <h1 className="text-3xl font-bold">Hotel Operations Dashboard</h1>
-                          <p className="text-stone-500 mt-2">Protected Hotel Administration Environment</p>
-                        </div>
+                        <MenuManagementPage />
+                      </RoleGuard>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/menu"
+                  element={
+                    <ProtectedRoute>
+                      <RoleGuard allowedRoles={['HOTEL_OWNER', 'HOTEL_ADMIN', 'BRANCH_MANAGER']}>
+                        <MenuManagementPage />
+                      </RoleGuard>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Waitstaff Operations */}
+                <Route
+                  path="/waiter/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <RoleGuard allowedRoles={['WAITER', 'BRANCH_MANAGER', 'HOTEL_ADMIN', 'HOTEL_OWNER']}>
+                        <WaiterDashboardPage />
+                      </RoleGuard>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Kitchen Display System (KDS) */}
+                <Route
+                  path="/kitchen/kds"
+                  element={
+                    <ProtectedRoute>
+                      <RoleGuard allowedRoles={['KITCHEN_STAFF', 'BRANCH_MANAGER', 'HOTEL_ADMIN', 'HOTEL_OWNER']}>
+                        <KitchenDisplayPage />
                       </RoleGuard>
                     </ProtectedRoute>
                   }

@@ -26,6 +26,10 @@ public class JwtTokenService {
     }
 
     public String generateAccessToken(UUID userId, UUID tenantId, String roleCode, List<String> permissions, String type) {
+        return generateAccessToken(userId, tenantId, null, roleCode, permissions, type);
+    }
+
+    public String generateAccessToken(UUID userId, UUID tenantId, UUID branchId, String roleCode, List<String> permissions, String type) {
         Instant now = Instant.now();
         Instant expiry = now.plusSeconds(jwtProperties.getAccessTokenExpirationSeconds());
 
@@ -42,6 +46,10 @@ public class JwtTokenService {
 
         if (tenantId != null) {
             builder.claim("tenantId", tenantId.toString());
+        }
+
+        if (branchId != null) {
+            builder.claim("branchId", branchId.toString());
         }
 
         return builder.compact();

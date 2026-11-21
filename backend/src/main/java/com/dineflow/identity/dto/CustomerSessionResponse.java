@@ -7,7 +7,19 @@ public record CustomerSessionResponse(
         String guestToken,
         UUID sessionId,
         UUID tenantId,
+        UUID branchId,
         String tableNumber,
         String customerName,
         Instant expiresAt
-) {}
+) {
+    public CustomerSessionResponse(
+            String guestToken,
+            UUID sessionId,
+            UUID tenantId,
+            String tableNumber,
+            String customerName,
+            Instant expiresAt
+    ) {
+        this(guestToken, sessionId, tenantId, null, tableNumber, customerName, expiresAt);
+    }
+}

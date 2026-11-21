@@ -49,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/logout").permitAll()
                         .requestMatchers("/api/v1/auth/password/**").permitAll()
                         .requestMatchers("/api/v1/customer-sessions", "/api/v1/customer-sessions/logout").permitAll()
+                        .requestMatchers("/api/v1/public/images/**").permitAll()
                         // All remaining endpoints require authenticated principal
                         .anyRequest().authenticated()
                 )

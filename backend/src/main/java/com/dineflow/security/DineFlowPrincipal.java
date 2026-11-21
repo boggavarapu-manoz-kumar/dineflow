@@ -12,13 +12,19 @@ public class DineFlowPrincipal implements UserDetails {
 
     private final UUID userId;
     private final UUID tenantId;
+    private final UUID branchId;
     private final String roleCode;
     private final String type; // STAFF or GUEST
     private final List<SimpleGrantedAuthority> authorities;
 
     public DineFlowPrincipal(UUID userId, UUID tenantId, String roleCode, List<String> permissions, String type) {
+        this(userId, tenantId, null, roleCode, permissions, type);
+    }
+
+    public DineFlowPrincipal(UUID userId, UUID tenantId, UUID branchId, String roleCode, List<String> permissions, String type) {
         this.userId = userId;
         this.tenantId = tenantId;
+        this.branchId = branchId;
         this.roleCode = roleCode;
         this.type = type;
         this.authorities = permissions.stream()
@@ -32,6 +38,10 @@ public class DineFlowPrincipal implements UserDetails {
 
     public UUID getTenantId() {
         return tenantId;
+    }
+
+    public UUID getBranchId() {
+        return branchId;
     }
 
     public String getRoleCode() {

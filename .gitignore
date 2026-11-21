@@ -9,6 +9,10 @@ backend/target/
 backend/.mvn/wrapper/maven-wrapper.jar
 backend/bin/
 backend/*.log
+backend/data/
+backend/uploads/
+*.txt
+*.lnk
 
 # Frontend
 frontend/node_modules/

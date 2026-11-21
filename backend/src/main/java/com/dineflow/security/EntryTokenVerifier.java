@@ -5,11 +5,11 @@ import java.util.UUID;
 
 /**
  * Interface contract for validating restaurant/table QR entry tokens.
- * Decouples Sprint 2 authentication from future Sprint 3+ QR generator module.
+ * Supports both legacy 4-part and branch-aware 5-part signatures.
  */
 public interface EntryTokenVerifier {
 
-    record VerifiedEntryContext(UUID tenantId, String tableNumber) {}
+    record VerifiedEntryContext(UUID tenantId, UUID branchId, String tableNumber) {}
 
     Optional<VerifiedEntryContext> verifyEntryToken(String signedEntryToken);
 }
