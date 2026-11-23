@@ -1,43 +1,37 @@
 package com.dineflow.menu.service;
 
 import com.dineflow.common.exception.BusinessException;
+import com.dineflow.storage.ObjectStorageService;
+import com.dineflow.storage.StorageCategory;
+import com.dineflow.storage.StorageObjectMetadata;
+import com.dineflow.storage.StorageUploadRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Menu image storage adapter backed by the unified {@link ObjectStorageService}.
+ * Works seamlessly with local filesystem (dev/test) and S3/GCS-compatible cloud
+ * object storage (staging/production) while preserving the existing public image API contract.
+ */
 @Service
 public class LocalImageStorageService implements ImageStorageService {
 
     private static final Logger log = LoggerFactory.getLogger(LocalImageStorageService.class);
-    private static final long MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
-    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
-            "image/jpeg",
-            "image/png",
-            "image/webp"
-    );
+    private static final String IMAGE_PREFIX = StorageCategory.MENU_IMAGE.getKeyPrefix() + "/";
 
-    private final Path rootStoragePath = Paths.get("uploads", "images");
+    private final ObjectStorageService objectStorageService;
 
-    public LocalImageStorageService() {
-        try {
-            Files.createDirectories(rootStoragePath);
-        } catch (IOException e) {
-            log.error("Could not initialize local image storage folder", e);
-        }
+    public LocalImageStorageService(ObjectStorageService objectStorageService) {
+        this.objectStorageService = objectStorageService;
     }
 
     @Override
@@ -46,114 +40,63 @@ public class LocalImageStorageService implements ImageStorageService {
             throw new BusinessException("Image file is missing or empty", HttpStatus.BAD_REQUEST, "INVALID_IMAGE_FILE");
         }
 
-        if (file.getSize() > MAX_FILE_SIZE_BYTES) {
-            throw new BusinessException("Image file size exceeds maximum limit of 5MB", HttpStatus.BAD_REQUEST, "FILE_TOO_LARGE");
-        }
-
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
-            throw new BusinessException("Only JPEG, PNG, and WebP images are permitted", HttpStatus.BAD_REQUEST, "INVALID_IMAGE_TYPE");
-        }
-
-        // Magic byte validation to prevent renamed executable/malicious uploads
-        validateMagicBytes(file, contentType);
-
-        String extension = switch (contentType.toLowerCase()) {
-            case "image/jpeg" -> ".jpg";
-            case "image/png" -> ".png";
-            case "image/webp" -> ".webp";
-            default -> ".img";
-        };
-
-        String generatedFileName = UUID.randomUUID() + extension;
-        String storageKey = tenantId + "/" + entityId + "/" + generatedFileName;
-        Path targetDir = rootStoragePath.resolve(tenantId.toString()).resolve(entityId.toString());
-        Path targetPath = targetDir.resolve(generatedFileName);
-
+        byte[] content;
         try {
-            Files.createDirectories(targetDir);
-            try (InputStream is = file.getInputStream()) {
-                Files.copy(is, targetPath, StandardCopyOption.REPLACE_EXISTING);
-            }
+            content = file.getBytes();
         } catch (IOException e) {
-            log.error("Failed to persist file to disk: {}", targetPath, e);
-            throw new BusinessException("Failed to store image file", HttpStatus.INTERNAL_SERVER_ERROR, "STORAGE_ERROR");
+            log.error("Unable to read uploaded image bytes for tenant={}", tenantId, e);
+            throw new BusinessException("Unable to read uploaded image", HttpStatus.BAD_REQUEST, "INVALID_IMAGE_STREAM");
         }
 
-        String imageUrl = "/api/v1/public/images/" + storageKey;
-        return new StoredImageResult(imageUrl, storageKey, file.getOriginalFilename(), file.getSize(), contentType);
+        StorageObjectMetadata meta = objectStorageService.upload(new StorageUploadRequest(
+                tenantId,
+                null,
+                StorageCategory.MENU_IMAGE,
+                entityId,
+                file.getOriginalFilename(),
+                file.getContentType(),
+                content
+        ));
+
+        String relativeKey = meta.objectKey().startsWith(IMAGE_PREFIX)
+                ? meta.objectKey().substring(IMAGE_PREFIX.length())
+                : meta.objectKey();
+
+        String imageUrl = "/api/v1/public/images/" + relativeKey;
+        return new StoredImageResult(imageUrl, relativeKey, file.getOriginalFilename(), meta.contentLength(), meta.contentType());
     }
 
     @Override
     public void deleteImage(String storageKey) {
-        if (storageKey == null || storageKey.isBlank()) {
+        if (storageKey == null || storageKey.isBlank() || storageKey.contains("..")) {
+            return;
+        }
+        String normalized = storageKey.startsWith(IMAGE_PREFIX) ? storageKey : IMAGE_PREFIX + storageKey;
+        String withoutPrefix = normalized.substring(IMAGE_PREFIX.length());
+        int slashIdx = withoutPrefix.indexOf('/');
+        if (slashIdx <= 0) {
             return;
         }
         try {
-            Path targetPath = rootStoragePath.resolve(storageKey).normalize();
-            if (!targetPath.startsWith(rootStoragePath)) {
-                log.warn("Path traversal detected while attempting to delete image: {}", storageKey);
-                return;
-            }
-            Files.deleteIfExists(targetPath);
-            log.info("Deleted image from storage: {}", storageKey);
-        } catch (IOException e) {
-            log.warn("Failed to delete image: {}", storageKey, e);
+            UUID tenantId = UUID.fromString(withoutPrefix.substring(0, slashIdx));
+            objectStorageService.delete(tenantId, normalized);
+        } catch (Exception e) {
+            log.warn("Failed to delete image key={}: {}", storageKey, e.getMessage());
         }
     }
 
     @Override
-    public Optional<org.springframework.core.io.Resource> loadAsResource(String storageKey) {
-        if (storageKey == null || storageKey.isBlank()) {
+    public Optional<Resource> loadAsResource(String storageKey) {
+        if (storageKey == null || storageKey.isBlank() || storageKey.contains("..")) {
             return Optional.empty();
         }
+        String fullKey = storageKey.startsWith(IMAGE_PREFIX) ? storageKey : IMAGE_PREFIX + storageKey;
         try {
-            Path targetPath = rootStoragePath.resolve(storageKey).normalize();
-            // Path traversal protection
-            if (!targetPath.startsWith(rootStoragePath)) {
-                log.warn("Path traversal attempt detected in loadAsResource: {}", storageKey);
-                return Optional.empty();
-            }
-            if (!Files.exists(targetPath) || !Files.isReadable(targetPath)) {
-                return Optional.empty();
-            }
-            org.springframework.core.io.Resource resource = new org.springframework.core.io.UrlResource(targetPath.toUri());
-            if (resource.exists() && resource.isReadable()) {
-                return Optional.of(resource);
-            }
+            return objectStorageService.downloadMenuImage(fullKey)
+                    .map(result -> new ByteArrayResource(result.content()));
+        } catch (BusinessException ex) {
+            log.warn("Rejected unsafe image load attempt for key={}: {}", storageKey, ex.getErrorCode());
             return Optional.empty();
-        } catch (Exception e) {
-            log.warn("Could not load image resource for key: {}", storageKey, e);
-            return Optional.empty();
-        }
-    }
-
-    private void validateMagicBytes(MultipartFile file, String contentType) {
-        try (InputStream is = file.getInputStream()) {
-            byte[] header = new byte[12];
-            int read = is.read(header);
-            if (read < 4) {
-                throw new BusinessException("Corrupted image header", HttpStatus.BAD_REQUEST, "INVALID_IMAGE_HEADER");
-            }
-
-            boolean valid = false;
-            if (contentType.equalsIgnoreCase("image/jpeg")) {
-                // JPEG magic bytes: FF D8 FF
-                valid = (header[0] == (byte) 0xFF && header[1] == (byte) 0xD8 && header[2] == (byte) 0xFF);
-            } else if (contentType.equalsIgnoreCase("image/png")) {
-                // PNG magic bytes: 89 50 4E 47
-                valid = (header[0] == (byte) 0x89 && header[1] == (byte) 0x50 && header[2] == (byte) 0x4E && header[3] == (byte) 0x47);
-            } else if (contentType.equalsIgnoreCase("image/webp")) {
-                // WEBP magic bytes: RIFF....WEBP
-                valid = (header[0] == 'R' && header[1] == 'I' && header[2] == 'F' && header[3] == 'F'
-                        && header[8] == 'W' && header[9] == 'E' && header[10] == 'B' && header[11] == 'P');
-            }
-
-            if (!valid) {
-                throw new BusinessException("File content does not match reported image MIME type", HttpStatus.BAD_REQUEST, "IMAGE_SIGNATURE_MISMATCH");
-            }
-        } catch (IOException e) {
-            throw new BusinessException("Unable to inspect image header", HttpStatus.BAD_REQUEST, "INVALID_IMAGE_STREAM");
         }
     }
 }

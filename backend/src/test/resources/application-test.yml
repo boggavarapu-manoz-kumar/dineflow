@@ -15,6 +15,11 @@ spring:
   flyway:
     enabled: false
 
+management:
+  health:
+    redis:
+      enabled: false
+
 dineflow:
   cors:
     allowed-origins: http://localhost:5173

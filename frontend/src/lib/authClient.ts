@@ -6,6 +6,7 @@ export interface UserProfile {
   fullName: string;
   status: string;
   activeTenantId: string | null;
+  branchId?: string | null;
   role: string;
   permissions: string[];
 }

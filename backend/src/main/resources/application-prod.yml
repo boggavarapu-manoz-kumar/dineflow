@@ -1,0 +1,109 @@
+server:
+  shutdown: graceful
+  forward-headers-strategy: native
+  error:
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+    include-exception: false
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  servlet:
+    multipart:
+      max-file-size: 6MB
+      max-request-size: 10MB
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}?currentSchema=${DB_SCHEMA:public}&sslmode=${DB_SSL_MODE:require}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:25}
+      minimum-idle: ${DB_POOL_MIN:5}
+      connection-timeout: 15000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 30000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      ssl:
+        enabled: ${REDIS_SSL_ENABLED:true}
+      timeout: 2s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
+      show-details: when_authorized
+
+dineflow:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      access-token-expiration-seconds: ${JWT_ACCESS_EXP_SECONDS:900}
+      refresh-token-expiration-seconds: ${JWT_REFRESH_EXP_SECONDS:604800}
+    qr:
+      salt: ${QR_SIGNING_SALT}
+      max-age-seconds: ${QR_MAX_AGE_SECONDS:86400}
+    cookie:
+      secure: true
+      same-site: Strict
+  storage:
+    type: ${STORAGE_TYPE:s3}
+    s3:
+      bucket: ${S3_BUCKET}
+      region: ${S3_REGION:ap-south-1}
+      endpoint: ${S3_ENDPOINT:}
+      path-style-access: ${S3_PATH_STYLE:false}
+  rate-limit:
+    enabled: true
+    store: ${RATE_LIMIT_STORE:redis}
+    fail-open: true
+  realtime:
+    fanout: ${REALTIME_FANOUT:redis}
+  reconciliation:
+    enabled: true
+    cron: ${RECONCILIATION_CRON:0 */5 * * * *}
+  payment:
+    razorpay:
+      enabled: true
+      key-id: ${RAZORPAY_KEY_ID}
+      key-secret: ${RAZORPAY_KEY_SECRET}
+      webhook-secret: ${RAZORPAY_WEBHOOK_SECRET}
+
+logging:
+  level:
+    root: INFO
+    com.dineflow: INFO
+    org.hibernate.SQL: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ} [%thread] %-5level %logger{36} - [corr:%X{correlationId:-NONE}] [tenant:%X{tenantId:-SYSTEM}] %msg%n"

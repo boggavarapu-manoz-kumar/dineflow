@@ -55,6 +55,7 @@ public class MenuItemService {
     private final MenuItemImageRepository imageRepository;
     private final BranchRepository branchRepository;
     private final ImageStorageService imageStorageService;
+    private final MenuProjectionCacheService menuCacheService;
 
     public MenuItemService(MenuItemRepository menuItemRepository,
                            MenuCategoryRepository categoryRepository,
@@ -64,7 +65,8 @@ public class MenuItemService {
                            MenuItemBranchConfigurationRepository branchConfigRepository,
                            MenuItemImageRepository imageRepository,
                            BranchRepository branchRepository,
-                           ImageStorageService imageStorageService) {
+                           ImageStorageService imageStorageService,
+                           MenuProjectionCacheService menuCacheService) {
         this.menuItemRepository = menuItemRepository;
         this.categoryRepository = categoryRepository;
         this.variantRepository = variantRepository;
@@ -74,6 +76,7 @@ public class MenuItemService {
         this.imageRepository = imageRepository;
         this.branchRepository = branchRepository;
         this.imageStorageService = imageStorageService;
+        this.menuCacheService = menuCacheService;
     }
 
     @Transactional
@@ -115,6 +118,7 @@ public class MenuItemService {
         item.setTenantId(tenantId);
 
         MenuItem saved = menuItemRepository.save(item);
+        menuCacheService.evictTenantMenu(tenantId);
         log.info("Created food item '{}' (id: {}) for tenant: {}", saved.getName(), saved.getId(), tenantId);
         return MenuItemDetailResponse.fromEntity(saved);
     }
@@ -181,6 +185,7 @@ public class MenuItemService {
         }
 
         MenuItem updated = menuItemRepository.save(item);
+        menuCacheService.evictTenantMenu(tenantId);
         log.info("Updated food item '{}' (id: {}) for tenant: {}", updated.getName(), updated.getId(), tenantId);
         return MenuItemDetailResponse.fromEntity(updated);
     }
@@ -197,6 +202,7 @@ public class MenuItemService {
         }
 
         menuItemRepository.delete(item);
+        menuCacheService.evictTenantMenu(tenantId);
         log.info("Deleted food item '{}' (id: {}) for tenant: {}", item.getName(), id, tenantId);
     }
 
@@ -331,6 +337,7 @@ public class MenuItemService {
         }
 
         MenuItemBranchConfiguration saved = branchConfigRepository.save(config);
+        menuCacheService.evictTenantMenu(tenantId);
         log.info("Updated branch override for item '{}' at branch '{}' for tenant: {}", item.getName(), branch.getName(), tenantId);
         return BranchConfigResponse.fromEntity(saved);
     }
@@ -365,6 +372,7 @@ public class MenuItemService {
         img.setTenantId(tenantId);
 
         MenuItemImage saved = imageRepository.save(img);
+        menuCacheService.evictTenantMenu(tenantId);
         log.info("Uploaded image '{}' for item '{}' for tenant: {}", saved.getFileName(), item.getName(), tenantId);
         return MenuItemDetailResponse.ImageResponse.fromEntity(saved);
     }

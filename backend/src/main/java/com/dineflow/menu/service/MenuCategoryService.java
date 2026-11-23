@@ -28,11 +28,14 @@ public class MenuCategoryService {
 
     private final MenuCategoryRepository categoryRepository;
     private final com.dineflow.menu.repository.MenuItemRepository menuItemRepository;
+    private final MenuProjectionCacheService menuCacheService;
 
     public MenuCategoryService(MenuCategoryRepository categoryRepository,
-                               com.dineflow.menu.repository.MenuItemRepository menuItemRepository) {
+                               com.dineflow.menu.repository.MenuItemRepository menuItemRepository,
+                               MenuProjectionCacheService menuCacheService) {
         this.categoryRepository = categoryRepository;
         this.menuItemRepository = menuItemRepository;
+        this.menuCacheService = menuCacheService;
     }
 
     @Transactional
@@ -68,6 +71,7 @@ public class MenuCategoryService {
         category.setTenantId(tenantId);
 
         MenuCategory saved = categoryRepository.save(category);
+        menuCacheService.evictTenantMenu(tenantId);
         log.info("Created category '{}' (id: {}) for tenant: {}", saved.getName(), saved.getId(), tenantId);
         return CategoryResponse.fromEntity(saved);
     }
@@ -131,6 +135,7 @@ public class MenuCategoryService {
         category.setImageUrl(request.imageUrl());
 
         MenuCategory updated = categoryRepository.save(category);
+        menuCacheService.evictTenantMenu(tenantId);
         log.info("Updated category '{}' (id: {}) for tenant: {}", updated.getName(), updated.getId(), tenantId);
         return CategoryResponse.fromEntity(updated);
     }
@@ -143,6 +148,7 @@ public class MenuCategoryService {
 
         category.setIsActive(isActive);
         MenuCategory updated = categoryRepository.save(category);
+        menuCacheService.evictTenantMenu(tenantId);
         log.info("Category '{}' status changed to active={} for tenant: {}", updated.getName(), isActive, tenantId);
         return CategoryResponse.fromEntity(updated);
     }
@@ -164,6 +170,7 @@ public class MenuCategoryService {
             }
         }
 
+        menuCacheService.evictTenantMenu(tenantId);
         return categoryRepository.findAllByTenantIdOrderByDisplayOrderAsc(tenantId)
                 .stream()
                 .map(CategoryResponse::fromEntity)
@@ -186,6 +193,7 @@ public class MenuCategoryService {
         }
 
         categoryRepository.delete(category);
+        menuCacheService.evictTenantMenu(tenantId);
         log.info("Deleted category '{}' (id: {}) for tenant: {}", category.getName(), categoryId, tenantId);
     }
 }

@@ -60,9 +60,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return;
                 }
 
-                // If TenantContext was not set by header, populate it from trusted token claim
+                // If TenantContext was not set by header, populate it and MDC from trusted token claim
                 if (currentTenantOpt.isEmpty() && tokenTenantId != null) {
                     TenantContext.setTenantId(tokenTenantId);
+                    org.slf4j.MDC.put("tenantId", tokenTenantId.toString());
                 }
 
                 DineFlowPrincipal principal = new DineFlowPrincipal(userId, tokenTenantId, tokenBranchId, roleCode, perms, type);

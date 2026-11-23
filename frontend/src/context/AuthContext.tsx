@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   UserProfile, 
   loginStaff as apiLoginStaff, 
@@ -80,18 +80,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return user?.permissions.includes(perm) ?? false;
   }, [user]);
 
+  const contextValue = useMemo<AuthContextType>(
+    () => ({
+      user,
+      isAuthenticated: !!user && !!getAccessToken(),
+      isLoading,
+      login,
+      logout,
+      hasRole,
+      hasPermission,
+    }),
+    [user, isLoading, login, logout, hasRole, hasPermission]
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user && !!getAccessToken(),
-        isLoading,
-        login,
-        logout,
-        hasRole,
-        hasPermission,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,0 +1,65 @@
+{
+  "title": "DineFlow Production Operations Overview",
+  "uid": "dineflow-prod-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP Request Rate & 5xx Ratio",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count[5m])) by (status)", "legendFormat": "HTTP {{status}}" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "HTTP Latency (P50 / P95)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket[5m])) by (le))", "legendFormat": "P50" },
+        { "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le))", "legendFormat": "P95" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "HikariCP Database Connection Pool",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "hikaricp_connections_active", "legendFormat": "Active" },
+        { "expr": "hikaricp_connections_idle", "legendFormat": "Idle" },
+        { "expr": "hikaricp_connections_pending", "legendFormat": "Pending" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Payment Initiations & Settlements",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(rate(dineflow_payments_initiations_total[5m])) by (outcome)", "legendFormat": "Init {{outcome}}" },
+        { "expr": "sum(rate(dineflow_payments_settlements_total[5m])) by (source)", "legendFormat": "Settled {{source}}" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Operational Backlogs (Reconciliation, Outbox, Kitchen)",
+      "type": "stat",
+      "targets": [
+        { "expr": "dineflow_reconciliation_pending_confirmation", "legendFormat": "Ambiguous Payments" },
+        { "expr": "dineflow_outbox_backlog{status=\"pending\"}", "legendFormat": "Outbox Pending" },
+        { "expr": "dineflow_outbox_backlog{status=\"dead_letter\"}", "legendFormat": "Outbox Dead-Letter" },
+        { "expr": "dineflow_kitchen_active_queue", "legendFormat": "Active Kitchen Tickets" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Redis Rate-Limit Latency & Failures",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "rate(dineflow_ratelimit_redis_failures_total[5m])", "legendFormat": "Redis Failures/s" },
+        { "expr": "rate(dineflow_ratelimit_requests_total{outcome=\"rejected\"}[5m])", "legendFormat": "429 Rejected/s" }
+      ]
+    }
+  ]
+}

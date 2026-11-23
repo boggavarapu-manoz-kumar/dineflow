@@ -10,9 +10,11 @@ import com.dineflow.order.dto.OrderStatusHistoryResponse;
 import com.dineflow.order.dto.TransitionOrderStatusRequest;
 import com.dineflow.order.repository.RestaurantOrderRepository;
 import com.dineflow.order.repository.RestaurantOrderStatusHistoryRepository;
+import com.dineflow.realtime.RealtimeEvent;
 import com.dineflow.security.DineFlowPrincipal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,7 @@ public class OrderLifecycleService {
     private final RestaurantOrderRepository orderRepository;
     private final RestaurantOrderStatusHistoryRepository historyRepository;
     private final OrderService orderService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // Transition state machine: Source Status -> Permitted Target Statuses
     private static final Map<OrderStatus, Set<OrderStatus>> VALID_TRANSITIONS = Map.of(
@@ -55,10 +58,12 @@ public class OrderLifecycleService {
 
     public OrderLifecycleService(RestaurantOrderRepository orderRepository,
                                  RestaurantOrderStatusHistoryRepository historyRepository,
-                                 OrderService orderService) {
+                                 OrderService orderService,
+                                 ApplicationEventPublisher eventPublisher) {
         this.orderRepository = orderRepository;
         this.historyRepository = historyRepository;
         this.orderService = orderService;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -96,6 +101,7 @@ public class OrderLifecycleService {
 
         try {
             RestaurantOrder savedOrder = orderRepository.saveAndFlush(order);
+            publishOrderTransitionEvents(savedOrder, currentStatus, targetStatus);
             log.info("Order status transitioned: OrderId: {}, OrderNumber: {}, From: {}, To: {}, Actor: {}",
                     savedOrder.getId(), savedOrder.getOrderNumber(), currentStatus, targetStatus, principal.getUserId());
             return orderService.toOrderResponse(savedOrder);
@@ -224,6 +230,29 @@ public class OrderLifecycleService {
 
         if (!hasCancelPermission) {
             throw new BusinessException("User does not have permission to cancel orders", HttpStatus.FORBIDDEN, "PERMISSION_DENIED");
+        }
+    }
+
+    private void publishOrderTransitionEvents(RestaurantOrder order, OrderStatus fromStatus, OrderStatus toStatus) {
+        String eventType = "ORDER_" + toStatus.name();
+        Map<String, Object> safePayload = Map.of(
+                "orderId", order.getId().toString(),
+                "orderNumber", order.getOrderNumber(),
+                "tableNumber", order.getTableNumber() != null ? order.getTableNumber() : "",
+                "previousStatus", fromStatus.name(),
+                "status", toStatus.name()
+        );
+        Long domainVersion = order.getVersion();
+
+        eventPublisher.publishEvent(RealtimeEvent.ofVersioned(
+                eventType, order.getTenantId(), order.getBranchId(), "order", order.getId(), domainVersion, safePayload));
+        eventPublisher.publishEvent(RealtimeEvent.ofVersioned(
+                eventType, order.getTenantId(), order.getBranchId(), "waiter", order.getId(), domainVersion, safePayload));
+
+        if (toStatus == OrderStatus.ACCEPTED || toStatus == OrderStatus.PREPARING
+                || toStatus == OrderStatus.READY || toStatus == OrderStatus.CANCELLED) {
+            eventPublisher.publishEvent(RealtimeEvent.ofVersioned(
+                    eventType, order.getTenantId(), order.getBranchId(), "kitchen", order.getId(), domainVersion, safePayload));
         }
     }
 }

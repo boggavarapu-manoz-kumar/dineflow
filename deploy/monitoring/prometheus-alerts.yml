@@ -1,0 +1,120 @@
+# ==============================================================================
+# DineFlow Prometheus Alerting Rules
+# NOTE: All numeric thresholds below are PROVISIONAL initial baselines.
+#       Tune against 14 days of staging/production traffic before paging on-call.
+# ==============================================================================
+groups:
+  - name: dineflow-payments-and-reconciliation
+    rules:
+      - alert: DineFlowPaymentProviderFailureSpike
+        expr: sum(rate(dineflow_payments_initiations_total{outcome=~"ambiguous|rejected"}[5m])) > 0.2
+        for: 3m
+        labels:
+          severity: critical
+          team: payments
+        annotations:
+          summary: "Repeated payment provider initiation failures or timeouts (provisional threshold)"
+          description: "Payment initiation failures/timeouts exceeded 0.2/sec over 5m."
+          runbook: "docs/OBSERVABILITY_AND_INCIDENT_RESPONSE_RUNBOOK.md#payment-provider-failures"
+
+      - alert: DineFlowWebhookFailureRateHigh
+        expr: sum(rate(dineflow_payments_webhooks_total{outcome=~"failed|invalid_signature"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          team: payments
+        annotations:
+          summary: "Elevated payment webhook failures or signature rejections (provisional)"
+          description: "Investigate Razorpay webhook secret rotation or payload schema drift."
+
+      - alert: DineFlowReconciliationBacklogGrowing
+        expr: dineflow_reconciliation_pending_confirmation > 25
+        for: 10m
+        labels:
+          severity: high
+          team: payments
+        annotations:
+          summary: "Ambiguous PENDING_CONFIRMATION payment backlog > 25 (provisional)"
+          description: "Verify ShedLock paymentReconciliationJob execution and Razorpay status API."
+
+      - alert: DineFlowReconciliationJobFailed
+        expr: increase(dineflow_reconciliation_runs_total{status="failed"}[15m]) > 0
+        for: 1m
+        labels:
+          severity: high
+          team: sre
+        annotations:
+          summary: "Scheduled payment or refund reconciliation job crashed"
+          description: "Inspect GET /api/v1/payments/reconciliation/history and pod logs."
+
+      - alert: DineFlowRefundExecutionFailures
+        expr: increase(dineflow_refunds_executions_total{outcome=~"failed|ambiguous"}[15m]) >= 3
+        for: 2m
+        labels:
+          severity: high
+          team: payments
+        annotations:
+          summary: "Repeated refund execution failures or timeouts (provisional)"
+          description: "Check Razorpay Refunds API and refundReconciliationJob backlog."
+
+  - name: dineflow-infrastructure-and-realtime
+    rules:
+      - alert: DineFlowDbConnectionPoolExhaustion
+        expr: (hikaricp_connections_active / hikaricp_connections_max) > 0.85
+        for: 3m
+        labels:
+          severity: critical
+          team: sre
+        annotations:
+          summary: "HikariCP database connection pool utilization > 85% (provisional)"
+          description: "Risk of connection starvation; check slow queries and active transactions."
+
+      - alert: DineFlowRedisUnavailable
+        expr: increase(dineflow_ratelimit_redis_failures_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: high
+          team: sre
+        annotations:
+          summary: "Redis/Valkey connection failures detected (provisional)"
+          description: "Sensitive endpoints are running on conservative LOCAL_FALLBACK."
+
+      - alert: DineFlowObjectStorageErrors
+        expr: increase(dineflow_storage_operations_total{outcome=~"error|timeout"}[10m]) >= 5
+        for: 2m
+        labels:
+          severity: high
+          team: sre
+        annotations:
+          summary: "Cloud object storage upload/download failures or timeouts (provisional)"
+          description: "Check S3/GCS IAM role, endpoint reachability, and bucket policy."
+
+      - alert: DineFlowOutboxBacklogDelayed
+        expr: dineflow_outbox_backlog{status="pending"} > 50 or dineflow_outbox_backlog{status="dead_letter"} > 0
+        for: 5m
+        labels:
+          severity: high
+          team: sre
+        annotations:
+          summary: "Realtime outbox backlog growing or dead-letter events present (provisional)"
+          description: "Check Redis Pub/Sub connectivity and realtimeOutboxRelayJob ShedLock status."
+
+      - alert: DineFlowHttp5xxRateElevated
+        expr: (sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count[5m])), 0.001)) > 0.02
+        for: 3m
+        labels:
+          severity: critical
+          team: sre
+        annotations:
+          summary: "HTTP 5xx error ratio exceeded 2% over 5m (provisional)"
+          description: "Correlate failing endpoints via X-Correlation-ID in structured logs."
+
+      - alert: DineFlowHighApiLatencyP95
+        expr: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le)) > 1.0
+        for: 5m
+        labels:
+          severity: medium
+          team: sre
+        annotations:
+          summary: "HTTP P95 latency exceeded 1.0s over 5m (provisional)"
+          description: "Inspect slow DB queries, Redis latency, and JVM GC pauses."

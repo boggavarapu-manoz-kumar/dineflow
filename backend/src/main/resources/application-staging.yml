@@ -1,0 +1,64 @@
+server:
+  shutdown: graceful
+  forward-headers-strategy: native
+  error:
+    include-stacktrace: never
+
+spring:
+  config:
+    activate:
+      on-profile: staging
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  servlet:
+    multipart:
+      max-file-size: 6MB
+      max-request-size: 10MB
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME:dineflow_staging}?currentSchema=${DB_SCHEMA:public}&sslmode=${DB_SSL_MODE:prefer}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:15}
+      minimum-idle: ${DB_POOL_MIN:3}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+
+dineflow:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+    qr:
+      salt: ${QR_SIGNING_SALT}
+    cookie:
+      secure: ${COOKIE_SECURE:true}
+      same-site: Strict
+  storage:
+    type: ${STORAGE_TYPE:s3}
+  rate-limit:
+    enabled: true
+    store: ${RATE_LIMIT_STORE:redis}
+  realtime:
+    fanout: ${REALTIME_FANOUT:redis}
+  payment:
+    razorpay:
+      enabled: true
+      key-id: ${RAZORPAY_KEY_ID}
+      key-secret: ${RAZORPAY_KEY_SECRET}
+      webhook-secret: ${RAZORPAY_WEBHOOK_SECRET}

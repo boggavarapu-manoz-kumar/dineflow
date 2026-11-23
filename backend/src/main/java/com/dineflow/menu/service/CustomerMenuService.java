@@ -35,19 +35,22 @@ public class CustomerMenuService {
     private final CustomerSessionRepository customerSessionRepository;
     private final HotelProfileRepository hotelProfileRepository;
     private final TenantRepository tenantRepository;
+    private final MenuProjectionCacheService menuCacheService;
 
     public CustomerMenuService(MenuCategoryRepository categoryRepository,
                                MenuItemRepository menuItemRepository,
                                MenuItemBranchConfigurationRepository branchConfigRepository,
                                CustomerSessionRepository customerSessionRepository,
                                HotelProfileRepository hotelProfileRepository,
-                               TenantRepository tenantRepository) {
+                               TenantRepository tenantRepository,
+                               MenuProjectionCacheService menuCacheService) {
         this.categoryRepository = categoryRepository;
         this.menuItemRepository = menuItemRepository;
         this.branchConfigRepository = branchConfigRepository;
         this.customerSessionRepository = customerSessionRepository;
         this.hotelProfileRepository = hotelProfileRepository;
         this.tenantRepository = tenantRepository;
+        this.menuCacheService = menuCacheService;
     }
 
     @Transactional(readOnly = true)
@@ -55,12 +58,29 @@ public class CustomerMenuService {
         UUID tenantId = principal.getTenantId();
         UUID sessionId = principal.getUserId();
 
-        // Resolve guest session for table number and branch
+        // Resolve guest session for table number and branch (NEVER cached — session-specific)
         CustomerSession session = customerSessionRepository.findById(sessionId).orElse(null);
         String tableNumber = session != null ? session.getTableNumber() : "01";
-        UUID branchId = session != null && session.getBranchId() != null 
-                ? session.getBranchId() 
+        UUID branchId = session != null && session.getBranchId() != null
+                ? session.getBranchId()
                 : principal.getBranchId();
+
+        // Read-through tenant + branch menu projection cache
+        MenuProjectionCacheService.CachedMenuProjection projection =
+                menuCacheService.getOrLoad(tenantId, branchId, () -> loadMenuProjectionFromDb(tenantId, branchId));
+
+        return new CustomerMenuResponse(
+                projection.tenantId(),
+                projection.restaurantName(),
+                tableNumber,
+                projection.currencyCode(),
+                projection.taxPercentage(),
+                projection.serviceChargePercentage(),
+                projection.categories()
+        );
+    }
+
+    private MenuProjectionCacheService.CachedMenuProjection loadMenuProjectionFromDb(UUID tenantId, UUID branchId) {
 
         // Load hotel profile for restaurant name, currency, tax — fall back to safe defaults
         Optional<HotelProfile> profileOpt = hotelProfileRepository.findByTenantId(tenantId);
@@ -215,10 +235,9 @@ public class CustomerMenuService {
             ));
         }
 
-        return new CustomerMenuResponse(
+        return new MenuProjectionCacheService.CachedMenuProjection(
                 tenantId,
                 restaurantName,
-                tableNumber,
                 currencyCode,
                 taxPercentage,
                 serviceChargePercentage,

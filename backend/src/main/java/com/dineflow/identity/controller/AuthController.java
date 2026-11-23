@@ -127,37 +127,21 @@ public class AuthController {
 
     @PostMapping("/password/forgot")
     public ResponseEntity<ApiResponse<Map<String, String>>> forgotPassword(
-            @Valid @RequestBody ForgotPasswordRequest request,
-            HttpServletRequest servletRequest) {
-        if (!rateLimiterService.tryAcquire("forgot:" + servletRequest.getRemoteAddr(), 5, 60)) {
-            throw new BusinessException("Too many reset attempts", HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMIT_EXCEEDED");
-        }
-
-        return ResponseEntity.ok(ApiResponse.ok(
-                Map.of("message", "If an account with that email exists, reset instructions have been dispatched."),
-                "Password reset requested"
-        ));
+            @Valid @RequestBody ForgotPasswordRequest request) {
+        throw new BusinessException(
+                "Self-service password reset is not enabled for this deployment. Contact your hotel administrator.",
+                HttpStatus.NOT_IMPLEMENTED,
+                "PASSWORD_RESET_NOT_CONFIGURED"
+        );
     }
 
     @PostMapping("/password/reset")
     public ResponseEntity<ApiResponse<Map<String, String>>> resetPassword(
             @Valid @RequestBody ResetPasswordRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(
-                Map.of("status", "PASSWORD_RESET_SUCCESSFUL"),
-                "Password has been reset successfully"
-        ));
-    }
-
-    /**
-     * Demonstrates cross-tenant resource protection via @PreAuthorize("@tenantSecurity.hasTenantAccess(#tenantId)")
-     */
-    @GetMapping("/tenant-resource")
-    @PreAuthorize("@tenantSecurity.hasTenantAccess(#tenantId) and hasAuthority('ORDER_VIEW')")
-    public ResponseEntity<ApiResponse<Map<String, String>>> getTenantProtectedResource(
-            @RequestParam UUID tenantId) {
-        return ResponseEntity.ok(ApiResponse.ok(
-                Map.of("data", "Confidential tenant data for: " + tenantId),
-                "Tenant resource access granted"
-        ));
+        throw new BusinessException(
+                "Self-service password reset is not enabled for this deployment. Contact your hotel administrator.",
+                HttpStatus.NOT_IMPLEMENTED,
+                "PASSWORD_RESET_NOT_CONFIGURED"
+        );
     }
 }
