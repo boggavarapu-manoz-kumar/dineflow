@@ -14,7 +14,19 @@ public record LoginResponse(
             String fullName,
             String status,
             UUID activeTenantId,
+            UUID branchId,
             String role,
             List<String> permissions
-    ) {}
+    ) {
+        public UserProfileResponse(
+                UUID id,
+                String email,
+                String fullName,
+                String status,
+                UUID activeTenantId,
+                String role,
+                List<String> permissions) {
+            this(id, email, fullName, status, activeTenantId, null, role, permissions);
+        }
+    }
 }

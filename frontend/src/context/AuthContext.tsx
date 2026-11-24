@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  UserProfile, 
-  loginStaff as apiLoginStaff, 
-  logoutStaff as apiLogoutStaff, 
+import {
+  UserProfile,
+  loginStaff as apiLoginStaff,
+  logoutStaff as apiLogoutStaff,
   refreshAccessToken,
   setAccessToken,
   getAccessToken
@@ -12,7 +12,7 @@ interface AuthContextType {
   user: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (identifier: string, pass: string, tenantId?: string) => Promise<void>;
+  login: (identifier: string, pass: string, tenantId?: string) => Promise<UserProfile>;
   logout: () => Promise<void>;
   hasRole: (role: string) => boolean;
   hasPermission: (perm: string) => boolean;
@@ -51,11 +51,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const login = useCallback(async (identifier: string, pass: string, tenantId?: string) => {
+  const login = useCallback(async (identifier: string, pass: string, tenantId?: string): Promise<UserProfile> => {
     setIsLoading(true);
     try {
       const data = await apiLoginStaff(identifier, pass, tenantId);
       setUser(data.user);
+      return data.user;
     } finally {
       setIsLoading(false);
     }

@@ -1,5 +1,7 @@
 package com.dineflow.identity.service;
 
+import com.dineflow.branch.domain.Branch;
+import com.dineflow.branch.repository.BranchRepository;
 import com.dineflow.common.exception.BusinessException;
 import com.dineflow.identity.domain.CustomerSession;
 import com.dineflow.identity.domain.Permission;
@@ -51,6 +53,7 @@ public class AuthService {
     private final JwtProperties jwtProperties;
     private final EntryTokenVerifier entryTokenVerifier;
     private final AuditLogService auditLogService;
+    private final BranchRepository branchRepository;
 
     public AuthService(UserRepository userRepository,
                        UserMembershipRepository membershipRepository,
@@ -60,7 +63,8 @@ public class AuthService {
                        JwtTokenService jwtTokenService,
                        JwtProperties jwtProperties,
                        EntryTokenVerifier entryTokenVerifier,
-                       AuditLogService auditLogService) {
+                       AuditLogService auditLogService,
+                       BranchRepository branchRepository) {
         this.userRepository = userRepository;
         this.membershipRepository = membershipRepository;
         this.refreshSessionRepository = refreshSessionRepository;
@@ -70,6 +74,7 @@ public class AuthService {
         this.jwtProperties = jwtProperties;
         this.entryTokenVerifier = entryTokenVerifier;
         this.auditLogService = auditLogService;
+        this.branchRepository = branchRepository;
     }
 
     @Transactional
@@ -162,12 +167,20 @@ public class AuthService {
 
         auditLogService.recordAuthEvent(user.getEmail(), membership.getTenantId(), "SUCCESS", "Staff authenticated", ipAddress, userAgent);
 
+        UUID activeBranchId = membership.getTenantId() != null
+                ? branchRepository.findByTenantIdAndIsMainTrue(membership.getTenantId())
+                        .filter(b -> Boolean.TRUE.equals(b.getIsActive()))
+                        .map(Branch::getId)
+                        .orElse(null)
+                : null;
+
         LoginResponse.UserProfileResponse userProfile = new LoginResponse.UserProfileResponse(
                 user.getId(),
                 user.getEmail(),
                 user.getFullName(),
                 user.getStatus().name(),
                 membership.getTenantId(),
+                activeBranchId,
                 membership.getRole().getCode(),
                 permissions
         );
@@ -234,12 +247,20 @@ public class AuthService {
         newSession.setUserAgent(userAgent);
         refreshSessionRepository.save(newSession);
 
+        UUID activeBranchId = membership.getTenantId() != null
+                ? branchRepository.findByTenantIdAndIsMainTrue(membership.getTenantId())
+                        .filter(b -> Boolean.TRUE.equals(b.getIsActive()))
+                        .map(Branch::getId)
+                        .orElse(null)
+                : null;
+
         LoginResponse.UserProfileResponse userProfile = new LoginResponse.UserProfileResponse(
                 user.getId(),
                 user.getEmail(),
                 user.getFullName(),
                 user.getStatus().name(),
                 membership.getTenantId(),
+                activeBranchId,
                 membership.getRole().getCode(),
                 permissions
         );

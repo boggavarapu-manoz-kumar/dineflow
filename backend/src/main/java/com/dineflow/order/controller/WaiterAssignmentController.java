@@ -47,7 +47,7 @@ public class WaiterAssignmentController {
      * Dispatch queue: view eligible branch orders for waiter assignment.
      */
     @GetMapping("/dispatch-queue")
-    @PreAuthorize("hasAuthority('WAITER_ASSIGN') or hasAuthority('ORDER_MANAGE')")
+    @PreAuthorize("hasAuthority('WAITER_ASSIGN') or hasAuthority('WAITER_VIEW') or hasAuthority('ORDER_MANAGE')")
     public ResponseEntity<ApiResponse<List<OrderResponse>>> getDispatchQueue(
             @AuthenticationPrincipal DineFlowPrincipal principal) {
         List<OrderResponse> orders = assignmentService.getBranchOrdersForAssignment(principal);

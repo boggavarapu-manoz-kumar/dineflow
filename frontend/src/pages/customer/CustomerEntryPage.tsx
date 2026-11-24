@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { UtensilsCrossed, User, Phone, ArrowRight, AlertCircle, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -7,9 +7,10 @@ import { enterCustomerSession } from '@/lib/authClient';
 export const CustomerEntryPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const restaurantName = searchParams.get('restaurant') || 'The Grand Heritage';
-  const tableNumber = searchParams.get('table') || '04';
-  const entryToken = searchParams.get('token') || 'demo-qr-token';
+  const urlToken = searchParams.get('token');
+  const [restaurantName, setRestaurantName] = useState(searchParams.get('restaurant') || 'The Grand Heritage');
+  const [tableNumber, setTableNumber] = useState(searchParams.get('table') || '04');
+  const [entryToken, setEntryToken] = useState(urlToken || '');
 
   const [name, setName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
@@ -17,6 +18,27 @@ export const CustomerEntryPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [sessionCreated, setSessionCreated] = useState(false);
+
+  // In local development, if opened directly without a ?token= QR parameter,
+  // auto-fetch a valid HMAC-signed demo QR token from the local-only backend seeder.
+  useEffect(() => {
+    if (urlToken || !import.meta.env.DEV) {
+      return;
+    }
+    const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) || 'http://localhost:8080/api/v1';
+    fetch(`${apiBase}/health/local-demo`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (json?.success && json?.data?.entryToken) {
+          setEntryToken(json.data.entryToken);
+          if (json.data.restaurantName) setRestaurantName(json.data.restaurantName);
+          if (json.data.tableNumber) setTableNumber(json.data.tableNumber);
+        }
+      })
+      .catch(() => {
+        // Ignore if local demo endpoint is disabled
+      });
+  }, [urlToken]);
 
   const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,7 +101,7 @@ export const CustomerEntryPage: React.FC = () => {
                 </p>
               </div>
               <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs text-stone-600 text-left">
-                <span className="font-semibold text-slate-900">Next Step:</span> In Sprint 3, you will automatically transition to the interactive digital menu with category filtering and real-time cart.
+                <span className="font-semibold text-slate-900">Opening Digital Menu:</span> Taking you straight to live ordering, cart, and real-time kitchen tracking.
               </div>
             </div>
           ) : (

@@ -26,8 +26,19 @@ export const StaffLoginPage: React.FC = () => {
 
     setLoading(true);
     try {
-      await login(email, password);
-      navigate('/admin/dashboard');
+      const loggedInUser = await login(email, password);
+      const role = loggedInUser?.role?.toUpperCase();
+      if (role === 'WAITER') {
+        navigate('/waiter/dashboard');
+      } else if (role === 'KITCHEN_STAFF') {
+        navigate('/kitchen/kds');
+      } else if (role === 'CASHIER') {
+        navigate('/admin/finance');
+      } else if (role === 'SUPER_ADMIN') {
+        navigate('/super-admin/dashboard');
+      } else {
+        navigate('/admin/dashboard');
+      }
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Authentication failed. Please verify credentials.');
     } finally {

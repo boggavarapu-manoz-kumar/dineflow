@@ -36,7 +36,20 @@ export const WaiterDashboardPage: React.FC = () => {
     dataUpdatedAt,
   } = useQuery({
     queryKey: ['waiter-assigned-orders'],
-    queryFn: () => waiterClient.getMyAssignedOrders(),
+    queryFn: async () => {
+      const assigned = await waiterClient.getMyAssignedOrders();
+      try {
+        const dispatch = await waiterClient.getDispatchQueue();
+        const byId = new Map<string, OrderDetail>();
+        for (const o of assigned) byId.set(o.orderId, o);
+        for (const o of dispatch) byId.set(o.orderId, o);
+        return Array.from(byId.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      } catch {
+        return assigned;
+      }
+    },
     refetchInterval: wsConnected ? 30000 : 10000,
   });
 
